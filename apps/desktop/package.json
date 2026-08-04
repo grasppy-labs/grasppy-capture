@@ -1,0 +1,13 @@
+{
+  "name": "@grasppy/capture-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Secure Electron desktop shell and locked React renderer for GRASPPY Capture.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

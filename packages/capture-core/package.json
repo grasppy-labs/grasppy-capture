@@ -1,0 +1,19 @@
+{
+  "name": "@grasppy/capture-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Clean-room contracts and local archive engine for GRASPPY Capture.",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

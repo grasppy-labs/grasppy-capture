@@ -1,0 +1,98 @@
+/* Purpose: Adapts the locked review-frame stylesheet to the real Electron content viewport without redesigning it. */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+}
+
+.capture-window.preview-frame {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.capture-window .app-shell,
+.capture-window .app-content {
+  min-height: 0;
+}
+
+.capture-window .app-shell {
+  height: 100%;
+}
+
+.capture-window .app-content {
+  overflow-y: auto;
+}
+
+.capture-window .conversation-title-button {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.capture-window .conversation-title-button:disabled {
+  cursor: default;
+}
+
+.capture-window .progress-bar.is-complete {
+  width: 100%;
+}
+
+.capture-window .breakdown-fill.ratio-0 { width: 0; }
+.capture-window .breakdown-fill.ratio-1 { width: 10%; }
+.capture-window .breakdown-fill.ratio-2 { width: 20%; }
+.capture-window .breakdown-fill.ratio-3 { width: 30%; }
+.capture-window .breakdown-fill.ratio-4 { width: 40%; }
+.capture-window .breakdown-fill.ratio-5 { width: 50%; }
+.capture-window .breakdown-fill.ratio-6 { width: 60%; }
+.capture-window .breakdown-fill.ratio-7 { width: 70%; }
+.capture-window .breakdown-fill.ratio-8 { width: 80%; }
+.capture-window .breakdown-fill.ratio-9 { width: 90%; }
+.capture-window .breakdown-fill.ratio-10 { width: 100%; }
+
+.capture-window .safe-path {
+  max-width: min(52vw, 520px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capture-window .screen-reader-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capture-window .progress-bar {
+    animation: none;
+  }
+}

@@ -1,0 +1,70 @@
+# Dependencies and build output
+node_modules/
+dist/
+out/
+release/
+coverage/
+.vite/
+.cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files and credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+*.mobileprovision
+*.provisionprofile
+
+# Local provider data and private archives
+*.jsonl
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+/archive/
+/archives/
+/private-fixtures/
+/fixtures/private/
+/tmp/
+/temp/
+
+# GRASPPY workspace mirrors and agent-local tooling
+/AGENTS.md
+/CLAUDE.md
+/.agents/
+/.claude/
+/.codex/
+/grasppy-exports/
+/src/utils/grasppyExportScript.cjs
+/src/utils/codexGrasppyExportScript.cjs
+/src/utils/registerChatSyncRoot.cjs
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+
+# Internal working documents — never published to the public repository
+/FAILED_CONVERSATIONS.md
+/PHASE_*_REVIEW.md
+/PACKAGING_SPIKE_REVIEW.md
+
+# App-icon build intermediates (icon.svg and icon.icns stay tracked)
+/build/icon.iconset/
+/build/icon.svg.png

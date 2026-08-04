@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="GRASPPY Capture app icon">
+  <!-- Grasppy brand bolt on the brand gradient, sized to Apple's Big Sur icon
+       grid (824pt content on a 1024pt canvas). The blue dot is Capture's own
+       badge, carried over from the in-app header mark. -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
+  <path d="M28 8L13 26h9L18 40l15-18h-9L28 8z" fill="#ffffff" transform="translate(100,100) scale(17.1667)"/>
+  <circle cx="856" cy="856" r="86" fill="#2563eb" stroke="#ffffff" stroke-width="22"/>
+</svg>

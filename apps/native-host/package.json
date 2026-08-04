@@ -1,0 +1,16 @@
+{
+  "name": "@grasppy/capture-native-host",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dependency-free on-demand Chrome Native Messaging host for GRASPPY Capture.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Purpose: Launches the packaged Electron executable in one-request Chrome Native Messaging mode.
+
+SCRIPT_DIRECTORY=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+APP_EXECUTABLE="$SCRIPT_DIRECTORY/../../MacOS/GRASPPY Capture"
+exec "$APP_EXECUTABLE" --native-messaging-host "$@"

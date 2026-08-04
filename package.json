@@ -1,0 +1,82 @@
+{
+  "name": "grasppy-capture",
+  "author": "Grasppy Labs LLC",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/grasppy-labs/grasppy-capture.git"
+  },
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first workspace for the GRASPPY Capture desktop application and shared capture core.",
+  "type": "module",
+  "main": "apps/desktop/src/main/main.js",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build:renderer",
+    "build:renderer": "vite build --config apps/desktop/vite.config.js",
+    "dev:renderer": "vite --config apps/desktop/vite.config.js",
+    "start": "npm run build:renderer && electron .",
+    "package:mac": "npm run build:renderer && electron-builder --mac dir --arm64",
+    "dmg:mac": "npm run build:renderer && electron-builder --mac dmg --arm64",
+    "test": "npm run test --workspaces --if-present",
+    "test:core": "npm test --workspace @grasppy/capture-core",
+    "test:desktop": "npm test --workspace @grasppy/capture-desktop",
+    "test:native-host": "npm test --workspace @grasppy/capture-native-host"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "electron": "43.2.0",
+    "electron-builder": "26.15.7",
+    "vite": "8.2.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "npm@11.11.0",
+  "build": {
+    "appId": "com.grasppy.capture",
+    "productName": "GRASPPY Capture",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "apps/desktop/dist/renderer/**/*",
+      "apps/desktop/src/main/**/*",
+      "apps/desktop/src/preload/**/*",
+      "apps/native-host/src/**/*",
+      "packages/capture-core/src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "apps/native-host/bin/grasppy-capture-native-host",
+        "to": "native-host/grasppy-capture-native-host"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    }
+  }
+}
