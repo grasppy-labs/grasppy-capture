@@ -141,6 +141,15 @@ export default function App() {
     }
   }
 
+  async function openUserGuide() {
+    setError(null);
+    try {
+      unwrap(await api.openUserGuide());
+    } catch (operationError) {
+      setError(operationError.message);
+    }
+  }
+
   async function openArchive() {
     try {
       unwrap(await api.openArchiveDirectory());
@@ -168,6 +177,7 @@ export default function App() {
           theme={theme}
           onThemeChange={toggleTheme}
           onCheckForUpdates={checkForUpdates}
+          onOpenUserGuide={openUserGuide}
         />
         <div className="app-content">
           {!configured ? (

@@ -156,6 +156,12 @@ async function startDesktopApplication() {
     ([value]) => validateExclusionRequest(value),
     ({ sessionKey, excluded }) => service.setExclusion(sessionKey, excluded),
   );
+  // Opens the hosted user guide in the default browser. The URL is a constant —
+  // never derived from renderer input — so this stays a fixed, auditable jump.
+  registerHandler('capture:open-guide', validateNoArguments, async () => {
+    await shell.openExternal('https://grasppy.com/capture/guide');
+    return Object.freeze({ opened: true });
+  });
   // Runs only when the user picks "Check for Updates…". The result is shown in a
   // native dialog so the download stays an explicit choice; the app never installs
   // anything itself, and the browser is only ever sent to the constant release URL.

@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('captureDesktop', Object.freeze({
     { sessionKey, excluded },
   ),
   checkForUpdates: () => invoke('capture:check-for-updates'),
+  openUserGuide: () => invoke('capture:open-guide'),
   openArchiveDirectory: () => invoke('capture:open-archive'),
   openArchivedSession: (sessionKey) => invoke('capture:open-session', { sessionKey }),
   subscribeToProgress: (callback) => {

@@ -92,6 +92,7 @@ window.captureDesktop = Object.freeze({
   selectArchiveDirectory: () => { selected = true; return success({ selected: true, displayPath: 'Documents' }); },
   completeSetup: () => { configured = selected; return success({ configured, archivePath: 'Documents › GRASPPY Capture Archive', dashboard }); },
   checkForUpdates: () => success({ status: 'up-to-date', currentVersion: '0.1.0' }),
+  openUserGuide: () => success({ opened: true }),
   catalogProviders: () => success({ catalog: catalog(), dashboard }),
   syncArchive: async () => {
     if (syncingMode) {

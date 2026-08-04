@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 import Icon from './icons.jsx';
 
-export default function Header({ configured, view, onViewChange, theme, onThemeChange, onCheckForUpdates }) {
+export default function Header({ configured, view, onViewChange, theme, onThemeChange, onCheckForUpdates, onOpenUserGuide }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -47,6 +47,19 @@ export default function Header({ configured, view, onViewChange, theme, onThemeC
 
       <div className="header-actions">
         <span className="local-badge"><Icon name="shield" /><span>Local only</span></span>
+        <button
+          className="icon-button"
+          type="button"
+          aria-label="Open the user guide"
+          title="User Guide — opens grasppy.com/capture/guide in your browser"
+          onClick={onOpenUserGuide}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.2 9.2a2.8 2.8 0 1 1 3.9 2.6c-.8.35-1.1.9-1.1 1.7" />
+            <path d="M12 17v.1" />
+          </svg>
+        </button>
         <button
           className="icon-button"
           type="button"
