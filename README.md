@@ -1,8 +1,20 @@
 # GRASPPY Capture
 
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-lightgrey.svg)](https://github.com/grasppy-labs/grasppy-capture/releases)
+[![Release](https://img.shields.io/github/v/release/grasppy-labs/grasppy-capture)](https://github.com/grasppy-labs/grasppy-capture/releases/latest)
+
 **A local archive for your AI coding conversations.** Capture finds the conversations that Claude Code, Codex, and Cursor already store on your Mac and converts them into clean, readable Markdown files in one folder you own.
 
 Your AI conversations contain real work — decisions, fixes, designs, research. The tools keep them in internal formats (JSONL logs, SQLite databases) that are hard to read and easy to lose. Capture turns that into a permanent, portable, searchable archive.
+
+One real archive, after one afternoon of use: **142 conversations, 400 MB of readable Markdown** — months of work across three AI tools, in one folder, greppable and portable forever.
+
+## Screenshots
+
+| Archive | Dashboard |
+|---|---|
+| ![Archive view — catalog, search, and sync](docs/screenshots/capture-archive.png) | ![Dashboard — conversation calendars and provider breakdown](docs/screenshots/capture-dashboard.png) |
 
 ## What it does
 
@@ -47,6 +59,39 @@ write     → atomic write into the archive; the manifest records the result
 ```
 
 Design details live in [PRODUCT.md](PRODUCT.md), [DESIGN.md](DESIGN.md), and [NATIVE_MESSAGING_V1.md](NATIVE_MESSAGING_V1.md).
+
+Every archived file carries a stable name and a self-describing header:
+
+```markdown
+claude-code--Backtesting-executor-parity--64c91278-….md
+
+# Markdown Export - Claude Code
+**Provider:** claude-code
+**Messages:** 330
+**Session ID:** 64c91278-…
+**Source Updated:** 2026-07-16T00:57:35.042Z
+**Conversation Turns:** 165
+```
+
+## Questions you'd reasonably ask
+
+**Is anything uploaded anywhere?**
+No. Cataloging and syncing make zero network requests. The only network call in the app is the Check for Updates menu item, it runs only when you click it, and it sends nothing but a version query to GitHub.
+
+**What does "Pending" mean after a sync?**
+Usually that a conversation is still open in its app. A file that changes while it is being read is skipped on purpose — a half-written archive is worse than a late one. It syncs the next time you run a sync while it's idle.
+
+**What if a source file is malformed?**
+Every conversation is validated before it is written, and every write is atomic. A conversation that can't be rendered correctly is reported, not silently mangled — and never overwrites a previous good copy.
+
+**Does it modify my Claude Code / Codex / Cursor data?**
+Never. Provider folders are opened read-only. Capture writes to exactly one place: the archive folder you chose.
+
+**Why do big re-scans finish in seconds?**
+The catalog trusts its own bookkeeping: a source whose size and modification time are unchanged since its last successful archive is skipped without reading a byte. Anything new or changed gets the full parse.
+
+**Windows / Linux / Intel Macs?**
+Not yet — this release is macOS on Apple Silicon. The core is plain Node.js with no native dependencies, so ports are mostly packaging work. Open an issue if you want one; it helps us order the queue.
 
 ## Contributing
 
