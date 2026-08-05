@@ -37,6 +37,8 @@ Capture makes no network requests while cataloging or syncing. Your conversation
 
 Currently macOS (Apple Silicon) only.
 
+The complete [user guide](https://grasppy.com/capture/guide) covers setup, sync statuses, and troubleshooting — it's also one click away from the **?** button in the app's header.
+
 ## Build from source
 
 ```bash

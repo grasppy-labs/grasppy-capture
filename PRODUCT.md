@@ -1,5 +1,11 @@
 # GRASPPY Capture Product Authority
 
+> **Build-phase specification (August 2026), kept for history.** The shipped app has
+> evolved past this document. Incremental cataloging, the update checker, the
+> dashboard calendars, and several renderer fixes came later. For current behavior
+> see [README.md](README.md) and the [user guide](https://grasppy.com/capture/guide).
+
+
 Status: Approved Phase B product authority  
 Plan authority: My Plans Part `30194`  
 Research authority: My Research Part `30198`
