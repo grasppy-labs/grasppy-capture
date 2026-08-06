@@ -56,12 +56,14 @@ export {
 } from './providers/catalog.js';
 export {
   ARCHIVE_DIRECTORY_NAME,
+  archiveFilenameId,
   createStableArchiveFilename,
   resolveArchiveDirectory,
   resolveContainedArchiveFile,
   sanitizeFilenameLabel,
   setupArchiveDirectory,
 } from './archive/paths.js';
+export { migrateArchiveFilenames } from './archive/migrate-filenames.js';
 export { renderCaptureMarkdown } from './archive/render-markdown.js';
 export {
   readCaptureMarkdownEnvelope,

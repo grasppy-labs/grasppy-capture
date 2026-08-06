@@ -10,6 +10,7 @@ import {
   catalogProviders,
   getShortSessionId,
   initializeOperationalManifest,
+  migrateArchiveFilenames,
   persistReviewCatalog,
   persistSessionExclusion,
   resolveContainedArchiveFile,
@@ -142,6 +143,17 @@ export function createCaptureAppService({
       ensureRegularManifest(manifestStat);
       const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
       validateOperationalManifest(manifest);
+      // One-time filename migration to {provider}--{short-id}--{label}.md —
+      // fast no-op once every entry is on the new convention. Non-fatal: a
+      // failed rename leaves that entry legacy-named for the next pass.
+      try {
+        const migration = await migrateArchiveFilenames({ manifestPath, manifest });
+        if (migration.renamed > 0) {
+          console.log(`[capture] archive filename migration: ${migration.renamed} renamed, ${migration.failures.length} deferred`);
+        }
+      } catch (migrationError) {
+        console.warn('[capture] archive filename migration failed (non-fatal):', migrationError?.message);
+      }
       return initializeOperationalManifest({
         appDataDirectory,
         archivePath: manifest.archivePath,

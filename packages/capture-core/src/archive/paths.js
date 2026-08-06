@@ -109,7 +109,7 @@ export function sanitizeFilenameLabel(value) {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^[. -]+|[. -]+$/g, '')
-    .slice(0, 72)
+    .slice(0, 60)
     .replace(/[. -]+$/g, '');
   if (normalizedValue === '' || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(normalizedValue)) {
     return 'conversation';
@@ -117,9 +117,23 @@ export function sanitizeFilenameLabel(value) {
   return normalizedValue;
 }
 
-export function createStableArchiveFilename({ provider, title, providerProjectKey, fullSessionId }) {
+// The filename's session-id segment. 8 chars matches the short id shown across
+// the product; longer lengths exist only for collision escalation — Codex ids
+// are time-ordered (UUIDv7), so two chats started within ~a minute can share
+// an 8-char prefix. 36 means the full canonical UUID.
+export function archiveFilenameId(fullSessionId, idLength = 8) {
+  const normalized = normalizeFullSessionId(fullSessionId);
+  if (idLength >= 36) return normalized;
+  return normalized.replace(/-/g, '').slice(0, idLength);
+}
+
+// Format: {provider}--{id}--{label}.md — the id sits at a FIXED second slot so
+// eyes and regexes always find it (owner decision 2026-08-05). '--' is reserved:
+// sanitizeFilenameLabel collapses dash runs, so a label can never contain it,
+// and parsing is always left-anchored on the known provider set + hex id.
+export function createStableArchiveFilename({ provider, title, providerProjectKey, fullSessionId, idLength = 8 }) {
   const normalizedProvider = normalizeProvider(provider);
-  const normalizedSessionId = normalizeFullSessionId(fullSessionId);
+  const fileId = archiveFilenameId(fullSessionId, idLength);
   const readableLabel = sanitizeFilenameLabel(title ?? providerProjectKey ?? 'conversation');
-  return `${normalizedProvider}--${readableLabel}--${normalizedSessionId}.md`;
+  return `${normalizedProvider}--${fileId}--${readableLabel}.md`;
 }

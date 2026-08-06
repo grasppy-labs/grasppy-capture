@@ -112,7 +112,7 @@ test('manual sync creates, recognizes unchanged, remembers exclusion, and safely
 
   assert.equal(first.run.results.created, 1);
   assert.equal(first.run.filesChecked, 1);
-  assert.equal(first.manifest.sessions[SESSION_KEY].outputPath.includes(SESSION_ID), true);
+  assert.equal(first.manifest.sessions[SESSION_KEY].outputPath.includes(`--${SESSION_ID.slice(0, 8)}--`), true);
   assert.equal(first.manifest.sessions[SESSION_KEY].outputPath.includes('2026-08-02T'), false);
   const stableOutputPath = first.manifest.sessions[SESSION_KEY].outputPath;
 

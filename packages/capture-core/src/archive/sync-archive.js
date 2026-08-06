@@ -62,12 +62,26 @@ async function inspectFixedSource(candidate) {
 
 function chooseDestination(manifest, entry, normalizedSession) {
   if (entry.outputPath) return entry.outputPath;
-  const filename = createStableArchiveFilename({
+  const base = {
     provider: normalizedSession.provider,
     title: normalizedSession.title.value,
     providerProjectKey: normalizedSession.source.providerProjectKey,
     fullSessionId: normalizedSession.fullSessionId,
-  });
+  };
+  // Collision escalation: if another session already owns this provider--id--
+  // prefix (possible for Codex UUIDv7 ids created within ~a minute), lengthen
+  // the id segment. Runs once per session — the chosen path is pinned after.
+  const takenBasenames = new Set(
+    Object.values(manifest.sessions ?? {})
+      .filter((s) => s.fullSessionId !== normalizedSession.fullSessionId && typeof s.outputPath === 'string')
+      .map((s) => path.basename(s.outputPath).toLowerCase()),
+  );
+  let filename = createStableArchiveFilename({ ...base, idLength: 36 });
+  for (const idLength of [8, 12, 36]) {
+    const candidate = createStableArchiveFilename({ ...base, idLength });
+    const prefix = candidate.toLowerCase().split('--').slice(0, 2).join('--') + '--';
+    if (![...takenBasenames].some((b) => b.startsWith(prefix))) { filename = candidate; break; }
+  }
   return path.join(manifest.archivePath, filename);
 }
 

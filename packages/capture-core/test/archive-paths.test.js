@@ -56,20 +56,43 @@ test('archive output containment rejects traversal and existing symlink files', 
   );
 });
 
-test('stable filenames preserve full identity, omit dates, and sanitize platform-hostile labels', () => {
+test('stable filenames lead with provider then fixed-slot short id, omit dates, and sanitize hostile labels', () => {
   const filename = createStableArchiveFilename({
     provider: 'codex',
     title: 'CON: Quarterly / archive? 2026.08.02.',
     fullSessionId: SESSION_ID,
   });
 
-  assert.equal(filename.endsWith(`--${SESSION_ID}.md`), true);
+  assert.equal(filename.startsWith('codex--12345678--'), true);
+  assert.equal(filename.includes(SESSION_ID), false); // full uuid lives in the file header, not the name
   assert.equal(filename.includes('/'), false);
   assert.equal(filename.includes('?'), false);
   assert.equal(filename.includes('2026-08-02T'), false);
+  assert.match(filename, /^(claude-code|codex|cursor)--[0-9a-f]{8}--/);
   assert.equal(filename, createStableArchiveFilename({
     provider: 'codex',
     title: 'CON: Quarterly / archive? 2026.08.02.',
     fullSessionId: SESSION_ID,
   }));
+});
+
+test('id segment escalates cleanly and labels can never contain the -- separator', () => {
+  assert.equal(
+    createStableArchiveFilename({ provider: 'codex', title: 'x', fullSessionId: SESSION_ID, idLength: 12 })
+      .startsWith('codex--123456781234--'),
+    true,
+  );
+  assert.equal(
+    createStableArchiveFilename({ provider: 'codex', title: 'x', fullSessionId: SESSION_ID, idLength: 36 })
+      .startsWith(`codex--${SESSION_ID}--`),
+    true,
+  );
+  const hostile = createStableArchiveFilename({
+    provider: 'claude-code',
+    title: 'A -- B ---- C — D    E' + 'y'.repeat(200),
+    fullSessionId: SESSION_ID,
+  });
+  const label = hostile.replace(/^claude-code--[0-9a-f]{8}--/, '').replace(/\.md$/, '');
+  assert.equal(label.includes('--'), false);
+  assert.equal(label.length <= 60, true);
 });
