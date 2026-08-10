@@ -232,11 +232,14 @@ export function createCaptureAppService({
 
   async function syncArchive() {
     const configured = await requireConfiguredArchive();
-    if (!lastProviderResults) {
-      lastProviderResults = await catalogFunction({
-        knownSources: knownSourcesFromManifest(configured.manifest),
-      });
-    }
+    // ALWAYS re-catalog. A snapshot cannot contain a conversation that started
+    // after it was taken, so reusing the one from window open made Sync Now
+    // report "up to date" while newer conversations sat pending — for days.
+    // Cataloging is the cheap half: sessions that already synced are matched by
+    // size and mtime alone, and only pending entries are ever written.
+    lastProviderResults = await catalogFunction({
+      knownSources: knownSourcesFromManifest(configured.manifest),
+    });
     const result = await runManualArchiveSync({
       manifestPath: configured.manifestPath,
       manifest: configured.manifest,

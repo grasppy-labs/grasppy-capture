@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/grasppy-labs/grasppy-capture.git"
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Local-first workspace for the GRASPPY Capture desktop application and shared capture core.",
   "type": "module",
