@@ -37,6 +37,9 @@ export {
   extensionOrigin,
   loadNativeHostConfig,
   registerMacNativeHost,
+  registerNativeHost,
+  registerWindowsNativeHost,
+  WINDOWS_BROWSER_HIVES,
 } from './registration.js';
 export {
   BROWSER_CAPTURE_FORMAT_VERSION,

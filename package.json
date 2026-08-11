@@ -25,7 +25,8 @@
     "test": "npm run test --workspaces --if-present",
     "test:core": "npm test --workspace @grasppy/capture-core",
     "test:desktop": "npm test --workspace @grasppy/capture-desktop",
-    "test:native-host": "npm test --workspace @grasppy/capture-native-host"
+    "test:native-host": "npm test --workspace @grasppy/capture-native-host",
+    "package:win": "npm run build && electron-builder --win --publish never"
   },
   "dependencies": {
     "react": "19.2.8",
@@ -77,6 +78,23 @@
           ]
         }
       ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "GRASPPY-Capture-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
     }
   }
 }

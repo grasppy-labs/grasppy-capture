@@ -131,6 +131,83 @@ export function buildNativeHostManifest({ hostExecutablePath, allowedOrigins }) 
   });
 }
 
+// Browsers that read Chromium-style native-messaging registrations on Windows.
+// Each has its own registry hive; the manifest file itself is identical, so one
+// file is written and every hive points at it.
+export const WINDOWS_BROWSER_HIVES = Object.freeze([
+  'HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts',
+  'HKCU\\Software\\Microsoft\\Edge\\NativeMessagingHosts',
+]);
+
+/**
+ * Windows registration.
+ *
+ * macOS registers by PLACING a file in a well-known directory. Windows registers
+ * by pointing a REGISTRY KEY at a file that may live anywhere — so the manifest
+ * goes next to the app's own data and the hives reference it by absolute path.
+ *
+ * `writeRegistryValue` is injectable so this whole path can be exercised on a
+ * non-Windows machine: the default shells out to reg.exe, tests pass a recorder.
+ * That matters because the failure this code exists to prevent — an extension ID
+ * missing from allowed_origins — reports "not installed" and nothing else.
+ */
+export async function registerWindowsNativeHost({
+  extensionIds,
+  hostExecutablePath,
+  appDataDirectory,
+  hives = WINDOWS_BROWSER_HIVES,
+  writeRegistryValue = defaultWriteRegistryValue,
+  now = new Date().toISOString(),
+}) {
+  const allowedOrigins = normalizeOrigins(extensionIds);
+  const canonicalExecutable = await validateHostExecutable(hostExecutablePath);
+  const canonicalAppData = await resolveRealDirectory(appDataDirectory, 'Capture application data is unavailable.');
+  const registeredAt = new Date(now).toISOString();
+  const runtimeConfig = {
+    schemaVersion: 1,
+    hostName: NATIVE_HOST_NAME,
+    allowedOrigins: [...allowedOrigins],
+    registeredAt,
+  };
+  const nativeManifest = buildNativeHostManifest({
+    hostExecutablePath: canonicalExecutable,
+    allowedOrigins,
+  });
+  await writeAtomicJson(canonicalAppData, NATIVE_HOST_CONFIG_FILENAME, runtimeConfig);
+  const manifestPath = await writeAtomicJson(
+    canonicalAppData,
+    NATIVE_HOST_MANIFEST_FILENAME,
+    nativeManifest,
+  );
+  const registeredHives = [];
+  for (const hive of hives) {
+    await writeRegistryValue(`${hive}\\${NATIVE_HOST_NAME}`, manifestPath);
+    registeredHives.push(hive);
+  }
+  return Object.freeze({
+    hostName: NATIVE_HOST_NAME,
+    allowedOrigins,
+    manifestPath,
+    registeredAt,
+    hives: Object.freeze(registeredHives),
+  });
+}
+
+async function defaultWriteRegistryValue(keyPath, manifestPath) {
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  // Argument ARRAY, never a shell string: a Windows manifest path routinely
+  // contains spaces (C:\Users\First Last\...) and must not be re-split.
+  await promisify(execFile)('reg', ['add', keyPath, '/ve', '/t', 'REG_SZ', '/d', manifestPath, '/f']);
+}
+
+/** Register for whichever platform we are on. The only entry point callers need. */
+export async function registerNativeHost(options = {}) {
+  const platform = options.platform ?? process.platform;
+  if (platform === 'win32') return registerWindowsNativeHost(options);
+  return registerMacNativeHost({ ...options, platform });
+}
+
 export async function registerMacNativeHost({
   extensionIds,
   hostExecutablePath,

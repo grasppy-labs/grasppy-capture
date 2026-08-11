@@ -10,8 +10,12 @@ import {
   NATIVE_ERROR_CODES,
   NATIVE_HOST_CONFIG_FILENAME,
   NATIVE_HOST_MANIFEST_FILENAME,
+  NATIVE_HOST_NAME,
+  WINDOWS_BROWSER_HIVES,
   assertAllowedCaller,
   registerMacNativeHost,
+  registerNativeHost,
+  registerWindowsNativeHost,
 } from '../src/index.js';
 import { INVENTED_EXTENSION_ID, INVENTED_ORIGIN } from './helpers.js';
 
@@ -97,4 +101,96 @@ test('registration rejects missing, wildcard, malformed, and non-executable iden
     }),
     (error) => error.code === NATIVE_ERROR_CODES.INVALID_REQUEST,
   );
+});
+
+// ── Windows registration ─────────────────────────────────────────────────────
+// These run on any OS. registerWindowsNativeHost takes an injectable
+// writeRegistryValue, so the Windows path is exercised for real on a Mac —
+// which matters because its one dangerous failure (an extension ID missing
+// from allowed_origins) reports "not installed" and nothing more.
+
+test('windows registration writes one manifest and points every browser hive at it', async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'grasppy-capture-win-registration-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const executablePath = path.join(root, 'invented-native-host');
+  const appDataDirectory = path.join(root, 'app-data');
+  await writeFile(executablePath, '#!/bin/sh\nexit 0\n', { mode: 0o700 });
+  await chmod(executablePath, 0o700);
+
+  const written = [];
+  const result = await registerWindowsNativeHost({
+    extensionIds: [INVENTED_EXTENSION_ID, INVENTED_EXTENSION_ID],
+    hostExecutablePath: executablePath,
+    appDataDirectory,
+    writeRegistryValue: async (keyPath, manifestPath) => { written.push({ keyPath, manifestPath }); },
+    now: '2026-08-11T08:00:00.000Z',
+  });
+
+  // Duplicates collapse, exactly as on macOS.
+  assert.deepEqual(result.allowedOrigins, [INVENTED_ORIGIN]);
+
+  // Chrome AND Edge, both pointed at the same single manifest file.
+  assert.equal(written.length, WINDOWS_BROWSER_HIVES.length);
+  assert.deepEqual(written.map((w) => w.keyPath), WINDOWS_BROWSER_HIVES.map((h) => `${h}\\${NATIVE_HOST_NAME}`));
+  for (const w of written) assert.equal(w.manifestPath, result.manifestPath);
+
+  // The manifest lives beside the app data, NOT in a browser directory —
+  // that is the whole difference from macOS.
+  assert.equal(path.basename(result.manifestPath), NATIVE_HOST_MANIFEST_FILENAME);
+  const manifest = JSON.parse(await readFile(result.manifestPath, 'utf8'));
+  assert.equal(manifest.name, NATIVE_HOST_NAME);
+  assert.equal(manifest.type, 'stdio');
+  assert.deepEqual(manifest.allowed_origins, [INVENTED_ORIGIN]);
+  assert.equal(manifest.path, await realpath(executablePath));
+
+  // The private runtime config is written the same way on both platforms.
+  const config = JSON.parse(await readFile(path.join(appDataDirectory, NATIVE_HOST_CONFIG_FILENAME), 'utf8'));
+  assert.deepEqual(config.allowedOrigins, [INVENTED_ORIGIN]);
+});
+
+test('windows registration refuses an extension id that is not exactly 32 chars', async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'grasppy-capture-win-registration-bad-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const executablePath = path.join(root, 'invented-native-host');
+  await writeFile(executablePath, '#!/bin/sh\nexit 0\n', { mode: 0o700 });
+  await chmod(executablePath, 0o700);
+
+  await assert.rejects(
+    registerWindowsNativeHost({
+      extensionIds: ['too-short'],
+      hostExecutablePath: executablePath,
+      appDataDirectory: path.join(root, 'app-data'),
+      writeRegistryValue: async () => {},
+    }),
+    (error) => error.code === NATIVE_ERROR_CODES.INVALID_REQUEST,
+  );
+});
+
+test('registerNativeHost dispatches on platform', async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'grasppy-capture-dispatch-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const executablePath = path.join(root, 'invented-native-host');
+  await writeFile(executablePath, '#!/bin/sh\nexit 0\n', { mode: 0o700 });
+  await chmod(executablePath, 0o700);
+
+  const written = [];
+  const win = await registerNativeHost({
+    platform: 'win32',
+    extensionIds: [INVENTED_EXTENSION_ID],
+    hostExecutablePath: executablePath,
+    appDataDirectory: path.join(root, 'win-data'),
+    writeRegistryValue: async (keyPath) => { written.push(keyPath); },
+  });
+  assert.equal(written.length, WINDOWS_BROWSER_HIVES.length);
+  assert.ok(win.hives);
+
+  const mac = await registerNativeHost({
+    platform: 'darwin',
+    extensionIds: [INVENTED_EXTENSION_ID],
+    hostExecutablePath: executablePath,
+    appDataDirectory: path.join(root, 'mac-data'),
+    chromeUserDataDirectory: path.join(root, 'chrome'),
+  });
+  // macOS returns no hives — the file's location IS the registration.
+  assert.equal(mac.hives, undefined);
 });
