@@ -19,11 +19,27 @@ import {
   validateOperationalManifest,
   validateStoredCaptureMarkdown,
 } from '../../../../packages/capture-core/src/index.js';
+import { migrateBrowserFilenames } from '../../../native-host/src/migrate-browser-filenames.js';
 
+// CLI providers first, then the browser providers the extension can save from.
+// A provider missing here falls back to its raw slug in the UI, so this list
+// must grow whenever the extension learns a new platform.
 const PROVIDER_NAMES = Object.freeze({
   'claude-code': 'Claude Code',
   codex: 'Codex',
   cursor: 'Cursor',
+  claude: 'Claude',
+  chatgpt: 'ChatGPT',
+  gemini: 'Gemini',
+  grok: 'Grok',
+  perplexity: 'Perplexity',
+  deepseek: 'DeepSeek',
+  mistral: 'Mistral',
+  typingmind: 'TypingMind',
+  copilot: 'GitHub Copilot',
+  replit: 'Replit',
+  bolt: 'Bolt',
+  lovable: 'Lovable',
 });
 
 function safeProviderResults(providerResults) {
@@ -153,6 +169,20 @@ export function createCaptureAppService({
         }
       } catch (migrationError) {
         console.warn('[capture] archive filename migration failed (non-fatal):', migrationError?.message);
+      }
+      // Browser captures were missed by the 2026-08-05 migration and kept the
+      // `browser--` prefix, which GRASPPY's scanner cannot read. Same contract:
+      // idempotent, no-op once clean, non-fatal.
+      try {
+        const browserMigration = await migrateBrowserFilenames({
+          appDataDirectory,
+          archivePath: manifest.archivePath,
+        });
+        if (browserMigration.renamed > 0) {
+          console.log(`[capture] browser filename migration: ${browserMigration.renamed} renamed, ${browserMigration.failures.length} deferred`);
+        }
+      } catch (migrationError) {
+        console.warn('[capture] browser filename migration failed (non-fatal):', migrationError?.message);
       }
       return initializeOperationalManifest({
         appDataDirectory,

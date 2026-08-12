@@ -8,9 +8,9 @@ import {
   OPERATIONAL_MANIFEST_FILENAME,
   initializeOperationalManifest,
   resolveContainedArchiveFile,
-  sanitizeFilenameLabel,
   validateOperationalManifest,
 } from '../../../packages/capture-core/src/index.js';
+import { browserArchiveFilename } from './browser-filename.js';
 import {
   cloneBrowserManifest,
   loadBrowserManifest,
@@ -137,12 +137,11 @@ async function releaseSaveLock(lock) {
 }
 
 function stableBrowserFilename(request) {
-  const asciiTitle = sanitizeFilenameLabel(request.title)
-    .replace(/[^a-z0-9._-]/gi, '-')
-    .replace(/-+/g, '-')
-    .replace(/^[.-]+|[.-]+$/g, '')
-    .slice(0, 56) || 'conversation';
-  return `browser--${request.provider}--${asciiTitle}--${request.conversationId}.md`;
+  return browserArchiveFilename({
+    provider: request.provider,
+    conversationId: request.conversationId,
+    title: request.title,
+  });
 }
 
 async function existingFileState(destinationPath, expectedIdentity) {
