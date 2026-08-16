@@ -18,7 +18,7 @@
 import { rename, stat } from 'node:fs/promises';
 import path from 'node:path';
 
-import { BROWSER_FILENAME_RE, browserArchiveFilename } from './browser-filename.js';
+import { BROWSER_FILENAME_RE, BROWSER_ID_LENGTHS, browserArchiveFilename } from './browser-filename.js';
 import { loadBrowserManifest, saveBrowserManifest, cloneBrowserManifest } from './browser-manifest.js';
 
 /** Title for the new name, recovered from the old basename's label slot. */
@@ -50,6 +50,14 @@ export async function migrateBrowserFilenames({
   }
 
   const next = cloneBrowserManifest(loaded.manifest);
+  // Every name already spoken for, migrated or not. rename() replaces an
+  // existing target without complaint, so without this two captures resolving
+  // to one basename would cost the user a conversation, silently and for good.
+  const taken = new Set(
+    Object.values(next.sessions)
+      .filter((entry) => typeof entry.outputFilename === 'string')
+      .map((entry) => entry.outputFilename.toLowerCase()),
+  );
   const failures = [];
   let renamed = 0;
 
@@ -62,11 +70,29 @@ export async function migrateBrowserFilenames({
       continue;
     }
 
-    const newBasename = browserArchiveFilename({
-      provider: entry.provider,
-      conversationId: entry.conversationId,
-      title: label,
-    });
+    // Shortest id segment nothing else already owns. Matching the CLI
+    // migration, the check is on the `{provider}--{id}--` prefix rather than
+    // the whole name, so the id slot stays unambiguous whatever the label.
+    let newBasename = null;
+    for (const idLength of BROWSER_ID_LENGTHS) {
+      const candidate = browserArchiveFilename({
+        provider: entry.provider,
+        conversationId: entry.conversationId,
+        title: label,
+        idLength,
+      });
+      const prefix = `${candidate.toLowerCase().split('--').slice(0, 2).join('--')}--`;
+      const clash = [...taken].some((basename) => basename !== oldBasename.toLowerCase()
+        && basename.startsWith(prefix));
+      if (!clash) { newBasename = candidate; break; }
+    }
+    if (newBasename === null) {
+      // Leave it legacy-named. An unreadable file is recoverable; an
+      // overwritten one is not.
+      failures.push({ sessionKey, reason: 'no collision-free filename' });
+      continue;
+    }
+
     const oldPath = path.join(archivePath, oldBasename);
     const newPath = path.join(archivePath, newBasename);
 
@@ -89,6 +115,8 @@ export async function migrateBrowserFilenames({
       }
     }
 
+    taken.delete(oldBasename.toLowerCase());
+    taken.add(newBasename.toLowerCase());
     entry.outputFilename = newBasename;
     renamed += 1;
   }

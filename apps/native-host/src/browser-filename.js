@@ -33,9 +33,16 @@ const LABEL_MAX = 56;
 export const BROWSER_FILENAME_RE =
   /^[a-z0-9-]+--([0-9a-f]{8}(?:[0-9a-f]{4})?|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})--.+\.md$/i;
 
+// Id-segment lengths BROWSER_FILENAME_RE accepts, shortest first. Only these
+// two are usable everywhere: the dashed-UUID form the regex also allows has no
+// equivalent for the digest branch, so slug and opaque providers could never
+// produce it. 8 is the default; 12 exists so a collision can be escalated out
+// of instead of one capture overwriting another.
+export const BROWSER_ID_LENGTHS = Object.freeze([8, 12]);
+
 /**
- * The id segment: 8 hex characters, matching the CLI path so every file in the
- * archive reads the same way.
+ * The id segment: 8 hex characters by default, matching the CLI path so every
+ * file in the archive reads the same way.
  *
  * Both branches are deterministic, which is the property that matters — the
  * same conversation must always produce the same filename, or a re-export
@@ -47,12 +54,16 @@ export const BROWSER_FILENAME_RE =
  * - Slug and opaque ids (replit's project name, perplexity's slug, gemini's and
  *   typingmind's opaque strings, bolt) have no hex to borrow, so they get the
  *   first 8 hex characters of a salted digest instead.
+ *
+ * `idLength` widens that segment for the migration's collision escalation. An
+ * id with fewer hex characters than requested simply yields what it has, which
+ * escalates to the same name and is correctly treated as an unresolved clash.
  */
-export function browserFilenameId(provider, conversationId) {
+export function browserFilenameId(provider, conversationId, idLength = 8) {
   const raw = String(conversationId ?? '');
   const hexOnly = raw.replace(/-/g, '');
-  if (/^[0-9a-f]{8,}$/i.test(hexOnly)) return hexOnly.slice(0, 8).toLowerCase();
-  return createHash('sha256').update(`${provider}:${raw}`).digest('hex').slice(0, 8);
+  if (/^[0-9a-f]{8,}$/i.test(hexOnly)) return hexOnly.slice(0, idLength).toLowerCase();
+  return createHash('sha256').update(`${provider}:${raw}`).digest('hex').slice(0, idLength);
 }
 
 /** The label segment: ASCII, no separators, no '--', never empty. */
@@ -65,6 +76,6 @@ export function browserFilenameLabel(title) {
 }
 
 /** `{provider}--{8-hex}--{label}.md` — the only shape this host writes. */
-export function browserArchiveFilename({ provider, conversationId, title }) {
-  return `${provider}--${browserFilenameId(provider, conversationId)}--${browserFilenameLabel(title)}.md`;
+export function browserArchiveFilename({ provider, conversationId, title, idLength = 8 }) {
+  return `${provider}--${browserFilenameId(provider, conversationId, idLength)}--${browserFilenameLabel(title)}.md`;
 }
