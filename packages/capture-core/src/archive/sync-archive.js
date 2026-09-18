@@ -99,10 +99,20 @@ export async function runManualArchiveSync({
   adapterResolver = getProviderAdapter,
   archiveWriter = writeValidatedArchiveFile,
   manifestWriter = saveOperationalManifest,
+  // Checkpointing (2026-09-18): persist the manifest after every N successful
+  // exports so an interrupted run (process killed, app quit mid-sync) keeps
+  // the bookkeeping for files it already wrote instead of re-parsing and
+  // rewriting all of them next time. 0 = off (the app's original behavior:
+  // one save at the end). The run record itself is still appended only once,
+  // at completion.
+  checkpointEvery = 0,
 } = {}) {
   validateOperationalManifest(manifest);
   if (typeof manifestPath !== 'string' || !path.isAbsolute(manifestPath)) {
     throw new CaptureError(ERROR_CODES.INVALID_MANIFEST, 'The operational manifest path is invalid.');
+  }
+  if (!Number.isInteger(checkpointEvery) || checkpointEvery < 0) {
+    throw new CaptureError(ERROR_CODES.INVALID_INPUT, 'checkpointEvery must be a non-negative integer.');
   }
 
   const startedAt = new Date(now()).toISOString();
@@ -119,6 +129,9 @@ export async function runManualArchiveSync({
   }
 
   let bytesWritten = 0;
+  let exportsSinceCheckpoint = 0;
+  let checkpointsFailed = 0;
+  let lastCheckpointError = null;
   for (const runItem of fixedRunSet) {
     const entry = nextManifest.sessions[runItem.sessionKey];
     try {
@@ -178,6 +191,21 @@ export async function runManualArchiveSync({
         lastSuccessfulExportAt: exportedAt,
         lastMarkdownSizeBytes: written.sizeBytes,
       };
+      exportsSinceCheckpoint += 1;
+      if (checkpointEvery > 0 && exportsSinceCheckpoint >= checkpointEvery) {
+        exportsSinceCheckpoint = 0;
+        try {
+          nextManifest.updatedAt = new Date(now()).toISOString();
+          validateOperationalManifest(nextManifest);
+          await manifestWriter(manifestPath, nextManifest);
+        } catch (checkpointError) {
+          // A failed checkpoint is not a failed export: the archive file is on
+          // disk and the final save still runs. Count it so the caller can see
+          // that mid-run durability was not achieved.
+          checkpointsFailed += 1;
+          lastCheckpointError = safeFailure(checkpointError);
+        }
+      }
     } catch (error) {
       results.failed += 1;
       failures.push(Object.freeze({
@@ -211,5 +239,6 @@ export async function runManualArchiveSync({
     run: Object.freeze(structuredClone(run)),
     failures: Object.freeze(failures),
     fixedRunSessionKeys: Object.freeze(fixedRunSet.map((item) => item.sessionKey)),
+    checkpoints: Object.freeze({ every: checkpointEvery, failed: checkpointsFailed, lastError: lastCheckpointError }),
   });
 }

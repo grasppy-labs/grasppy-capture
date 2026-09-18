@@ -267,3 +267,62 @@ test('catalog truth and fixed-run selection remain complete with 300 invented co
   assert.equal(createFixedRunSet(review).length, 300);
   assert.equal(review.items.every((item) => item.status === 'new'), true);
 });
+
+test('checkpointEvery persists the manifest mid-run and the default keeps a single final save', async (testContext) => {
+  const { sourcePath, initialized } = await setupSync(testContext);
+  const candidate = await createCandidate(sourcePath);
+  const adapterResolver = () => ({ normalizeSession: (item) => normalizedFromCandidate(item) });
+
+  // Default: exactly one manifest write, at the end (the app's original behavior).
+  const singleWrites = [];
+  const single = await runManualArchiveSync({
+    ...initialized,
+    providerResults: providerResults(candidate),
+    now: () => NOW,
+    adapterResolver,
+    manifestWriter: async (manifestPath, manifest) => { singleWrites.push(structuredClone(manifest)); },
+  });
+  assert.equal(single.run.results.created, 1);
+  assert.equal(singleWrites.length, 1);
+  assert.deepEqual(single.checkpoints, { every: 0, failed: 0, lastError: null });
+
+  // checkpointEvery=1: a write after the export (without the run record) plus the final write (with it).
+  const checkpointWrites = [];
+  const checkpointed = await runManualArchiveSync({
+    manifestPath: initialized.manifestPath,
+    manifest: initialized.manifest,
+    providerResults: providerResults(candidate),
+    now: () => NOW,
+    adapterResolver,
+    checkpointEvery: 1,
+    manifestWriter: async (manifestPath, manifest) => { checkpointWrites.push(structuredClone(manifest)); },
+  });
+  assert.equal(checkpointed.run.results.replaced, 1);
+  assert.equal(checkpointWrites.length, 2);
+  assert.equal(checkpointWrites[0].sessions[SESSION_KEY].lastSuccessfulExportAt, NOW);
+  assert.equal(checkpointWrites[0].runs.length, initialized.manifest.runs.length);
+  assert.equal(checkpointWrites[1].runs.length, initialized.manifest.runs.length + 1);
+  assert.deepEqual(checkpointed.checkpoints, { every: 1, failed: 0, lastError: null });
+
+  // A failing checkpoint does not fail the export; the final save still happens and the failure is reported.
+  let calls = 0;
+  const flaky = await runManualArchiveSync({
+    manifestPath: initialized.manifestPath,
+    manifest: initialized.manifest,
+    providerResults: providerResults(candidate),
+    now: () => NOW,
+    adapterResolver,
+    checkpointEvery: 1,
+    manifestWriter: async () => { calls += 1; if (calls === 1) throw new Error('disk hiccup'); },
+  });
+  assert.equal(flaky.run.results.replaced, 1);
+  assert.equal(flaky.run.results.failed, 0);
+  assert.equal(calls, 2);
+  assert.equal(flaky.checkpoints.failed, 1);
+  assert.equal(flaky.checkpoints.lastError.code, ERROR_CODES.SOURCE_READ_FAILED);
+
+  await assert.rejects(
+    () => runManualArchiveSync({ ...initialized, providerResults: providerResults(candidate), checkpointEvery: -1 }),
+    (error) => error.code === ERROR_CODES.INVALID_INPUT,
+  );
+});
