@@ -106,6 +106,11 @@ export async function runManualArchiveSync({
   // one save at the end). The run record itself is still appended only once,
   // at completion.
   checkpointEvery = 0,
+  // Automatic callers (the GRASPPY daemon's change-driven sync) pass false so a
+  // run that created, replaced and failed nothing is not recorded; at a
+  // once-a-minute cadence those empty runs would bury the history calendar.
+  // Default true keeps every user-initiated Sync visible.
+  recordEmptyRun = true,
 } = {}) {
   validateOperationalManifest(manifest);
   if (typeof manifestPath !== 'string' || !path.isAbsolute(manifestPath)) {
@@ -230,7 +235,8 @@ export async function runManualArchiveSync({
     results,
   };
   nextManifest.updatedAt = completedAt;
-  nextManifest.runs.push(run);
+  const emptyRun = results.created === 0 && results.replaced === 0 && results.failed === 0;
+  if (recordEmptyRun || !emptyRun) nextManifest.runs.push(run);
   validateOperationalManifest(nextManifest);
   await manifestWriter(manifestPath, nextManifest);
 

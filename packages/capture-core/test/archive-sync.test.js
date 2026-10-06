@@ -326,3 +326,36 @@ test('checkpointEvery persists the manifest mid-run and the default keeps a sing
     (error) => error.code === ERROR_CODES.INVALID_INPUT,
   );
 });
+
+test('recordEmptyRun false skips a run that changed nothing and keeps runs that wrote files', async (testContext) => {
+  const { sourcePath, initialized } = await setupSync(testContext);
+  const candidate = await createCandidate(sourcePath);
+  const adapterResolver = () => ({ normalizeSession: (item) => normalizedFromCandidate(item) });
+  const first = await runManualArchiveSync({
+    ...initialized,
+    providerResults: providerResults(candidate),
+    now: () => NOW,
+    adapterResolver,
+    recordEmptyRun: false,
+  });
+  assert.equal(first.run.results.created, 1);
+  const runsAfterFirst = first.manifest.runs.length;
+  const empty = await runManualArchiveSync({
+    manifestPath: initialized.manifestPath,
+    manifest: first.manifest,
+    providerResults: providerResults(candidate),
+    now: () => NOW,
+    adapterResolver,
+    recordEmptyRun: false,
+  });
+  assert.equal(empty.run.results.unchanged, 1);
+  assert.equal(empty.manifest.runs.length, runsAfterFirst);
+  const recorded = await runManualArchiveSync({
+    manifestPath: initialized.manifestPath,
+    manifest: empty.manifest,
+    providerResults: providerResults(candidate),
+    now: () => NOW,
+    adapterResolver,
+  });
+  assert.equal(recorded.manifest.runs.length, runsAfterFirst + 1);
+});

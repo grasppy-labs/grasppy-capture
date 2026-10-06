@@ -260,7 +260,9 @@ export function createCaptureAppService({
     });
   }
 
-  async function syncArchive() {
+  // automatic: a sync requested by the GRASPPY daemon (--sync-now). It does not
+  // record a run that changed nothing, so the history calendar stays readable.
+  async function syncArchive({ automatic = false } = {}) {
     const configured = await requireConfiguredArchive();
     // ALWAYS re-catalog. A snapshot cannot contain a conversation that started
     // after it was taken, so reusing the one from window open made Sync Now
@@ -274,6 +276,7 @@ export function createCaptureAppService({
       manifestPath: configured.manifestPath,
       manifest: configured.manifest,
       providerResults: lastProviderResults,
+      recordEmptyRun: !automatic,
     });
     const reviewCatalog = await buildReviewCatalog(result.manifest, lastProviderResults);
     return Object.freeze({

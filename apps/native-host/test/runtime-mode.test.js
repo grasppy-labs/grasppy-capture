@@ -19,3 +19,11 @@ test('native messaging and fixed-id registration require explicit flags', () => 
     { mode: 'register-native-host', extensionIds: ['a'.repeat(32)] },
   );
 });
+
+test('--sync-now selects the headless sync mode, and native messaging still wins', () => {
+  assert.deepEqual(parseRuntimeMode(['capture', '--sync-now']), { mode: 'sync-now', extensionIds: [] });
+  assert.deepEqual(
+    parseRuntimeMode(['capture', '--native-messaging-host', '--sync-now']),
+    { mode: 'native-host', extensionIds: [] },
+  );
+});

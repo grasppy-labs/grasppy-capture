@@ -32,6 +32,18 @@ const SAFE_OPERATION_MESSAGES = new Set([
 ]);
 let mainWindow = null;
 let pendingSetupParent = null;
+let desktopService = null;
+let headlessSyncRunning = false;
+let desktopRequestedDuringSync = false;
+
+// One serialized lane for every sync, so the window's Sync Now and a
+// --sync-now request from the GRASPPY daemon never write the manifest at once.
+let syncLane = Promise.resolve();
+function runSerializedSync(operation) {
+  const next = syncLane.then(operation, operation);
+  syncLane = next.catch(() => {});
+  return next;
+}
 
 function publicFailure(error) {
   const failure = toPublicError(error);
@@ -116,6 +128,7 @@ function createWindow() {
 async function startDesktopApplication() {
   await app.whenReady();
   const service = createCaptureAppService({ appDataDirectory: app.getPath('userData') });
+  desktopService = service;
 
   registerHandler('capture:get-status', validateNoArguments, () => service.getStatus());
   registerHandler('capture:select-archive', validateNoArguments, async () => {
@@ -144,7 +157,7 @@ async function startDesktopApplication() {
   });
   registerHandler('capture:sync', validateNoArguments, async () => {
     sendProgress('syncing', 'Updating the local Markdown archive…');
-    const result = await service.syncArchive();
+    const result = await runSerializedSync(() => service.syncArchive());
     sendProgress(
       result.run.status === 'success' ? 'success' : 'warning',
       result.run.status === 'success' ? 'Sync complete.' : 'Sync completed with warnings.',
@@ -250,9 +263,68 @@ async function registerNativeHost() {
   app.exit(0);
 }
 
+// --sync-now: export pending conversations without a window, print one JSON
+// line and exit. Used by the GRASPPY daemon so this app stays the only writer of
+// the archive manifest (plan 38382). If the user opens the app meanwhile, the
+// window opens when the sync finishes instead of exiting.
+async function runHeadlessSync() {
+  await app.whenReady();
+  app.dock?.hide();
+  headlessSyncRunning = true;
+  const service = createCaptureAppService({ appDataDirectory: app.getPath('userData') });
+  let outcome;
+  try {
+    const result = await runSerializedSync(() => service.syncArchive({ automatic: true }));
+    outcome = Object.freeze({
+      success: true,
+      status: result.run.status,
+      created: result.run.results.created,
+      replaced: result.run.results.replaced,
+      failed: result.run.results.failed,
+    });
+  } catch (error) {
+    outcome = publicFailure(error);
+  }
+  headlessSyncRunning = false;
+  process.stdout.write(`${JSON.stringify(outcome)}\n`);
+  if (desktopRequestedDuringSync) {
+    app.dock?.show();
+    return startDesktopApplication();
+  }
+  app.exit(outcome.success ? 0 : 1);
+}
+
+// A second launch hands its request to the running instance: --sync-now queues a
+// background sync; a normal launch brings the window forward.
+function handleSecondInstance(data) {
+  if (data?.syncNow) {
+    if (!desktopService) return; // a headless sync is already running
+    void runSerializedSync(() => desktopService.syncArchive({ automatic: true }))
+      .then((result) => sendProgress('ready', `Background sync: ${result.run.results.created + result.run.results.replaced} conversation(s) updated.`))
+      .catch((error) => console.error(JSON.stringify({ timestamp: new Date().toISOString(), operation: 'sync-now', code: publicFailure(error).code })));
+    return;
+  }
+  if (headlessSyncRunning) { desktopRequestedDuringSync = true; return; }
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  } else if (desktopService) {
+    createWindow();
+  }
+}
+
 async function startRuntime() {
   if (RUNTIME_MODE.mode === 'native-host') return startNativeHost();
   if (RUNTIME_MODE.mode === 'register-native-host') return registerNativeHost();
+  // Desktop and headless sync share one instance lock, so the archive manifest
+  // has a single writer. A losing launch passes its request to the winner.
+  const syncNow = RUNTIME_MODE.mode === 'sync-now';
+  if (!app.requestSingleInstanceLock({ syncNow })) {
+    app.exit(0);
+    return undefined;
+  }
+  app.on('second-instance', (_event, _argv, _cwd, data) => handleSecondInstance(data));
+  if (syncNow) return runHeadlessSync();
   return startDesktopApplication();
 }
 
