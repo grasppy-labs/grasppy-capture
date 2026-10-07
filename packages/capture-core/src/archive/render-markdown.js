@@ -76,7 +76,12 @@ function renderSupportingEvent(event) {
       .replace(/\s+/g, ' ')
       .trim()
       .slice(0, 80) || 'tool';
-    return `### Tool activity — ${toolName}\n\n${content || '_No textual output._'}`;
+    // The body sits in its own fence, tagged grasppy-tool and longer than any fence inside it, so a
+    // reader can drop a tool block exactly: tool output never reads as the person's or the AI's words.
+    const body = content || '_No textual output._';
+    const longest = Math.max(2, ...(body.match(/`{3,}/g) || []).map((run) => run.length));
+    const fence = '`'.repeat(longest + 1);
+    return `### Tool activity — ${toolName}\n\n${fence}grasppy-tool\n${body}\n${fence}`;
   }
   if (event.type === 'image') return `### Image\n\n${content || '[Image content]'}`;
   if (event.type === 'compaction') return `### Compaction event\n\n${content}`;

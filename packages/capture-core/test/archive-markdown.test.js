@@ -46,6 +46,7 @@ test('renderer emits recoverable format metadata and sequential role blocks', ()
   assert.match(rendered.markdown, /Show &lt;workspace&gt; and not HTML\./);
   assert.match(rendered.markdown, /const node = "<kept>";/);
   assert.match(rendered.markdown, /### Tool activity — local reader/);
+  assert.match(rendered.markdown, /### Tool activity — local reader\n\n(`{3,})grasppy-tool\n[\s\S]*?\n\1\n/);
   assert.match(rendered.markdown, /\\## 👤 USER MESSAGE \(99\)/);
   assert.deepEqual(validateCaptureMarkdown(rendered.markdown, rendered.envelope), {
     messageCount: 3,
@@ -72,4 +73,28 @@ test('validator rejects altered identity, empty role content, null bytes, and un
       (error) => error.code === ERROR_CODES.INVALID_MARKDOWN_CONTRACT,
     );
   }
+});
+
+// The escalation branch. A tool body routinely contains fenced code — Bash
+// output, a file read — and a wrapper of equal length would be closed by the
+// first inner fence, so a reader dropping the tool block would carry off the
+// rest of the message with it.
+test('tool blocks are fenced longer than any fence inside them', () => {
+  const rendered = renderCaptureMarkdown(inventedSession([
+    { type: 'user', content: 'Run it.' },
+    { type: 'tool', content: '```js\nconst a = 1;\n```', metadata: { toolName: 'Bash' } },
+    { type: 'tool', content: '````\nalready four\n````', metadata: { toolName: 'Read' } },
+    { type: 'assistant', content: 'Invented answer' },
+  ]), { exportedAt: NOW });
+
+  assert.ok(
+    rendered.markdown.includes('### Tool activity — Bash\n\n````grasppy-tool\n```js\nconst a = 1;\n```\n````'),
+    'a three-backtick body must be wrapped in four',
+  );
+  assert.ok(
+    rendered.markdown.includes('### Tool activity — Read\n\n`````grasppy-tool\n````\nalready four\n````\n`````'),
+    'a four-backtick body must be wrapped in five',
+  );
+  // Throws on unbalanced fences, which is what the escalation exists to prevent.
+  assert.equal(validateCaptureMarkdown(rendered.markdown, rendered.envelope).messageCount, 2);
 });

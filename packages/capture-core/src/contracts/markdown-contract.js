@@ -3,7 +3,7 @@
 import { CaptureError, ERROR_CODES } from '../errors.js';
 import { createSessionKey, normalizeFullSessionId, normalizeProvider } from './identity.js';
 
-export const CAPTURE_FORMAT_VERSION = 1;
+export const CAPTURE_FORMAT_VERSION = 2;
 export const MARKDOWN_ROLE_MARKERS = Object.freeze({
   user: '## 👤 USER MESSAGE',
   assistant: '## 🤖 AI RESPONSE',
