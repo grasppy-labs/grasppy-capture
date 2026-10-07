@@ -144,11 +144,11 @@ Capture produces the role-marker structure already accepted by GRASPPY:
 ...
 ```
 
-Each file also carries the versioned Capture envelope `GRASPPY Capture Format: 1` plus Provider, full Session ID, Source Updated, Exported, Messages, and Conversation Turns metadata. Capture-normalized files are ready for GRASPPY import; they are not already GRASPPY-enriched.
+Each file also carries the versioned Capture envelope `GRASPPY Capture Format: 2` plus Provider, full Session ID, Source Updated, Exported, Messages, and Conversation Turns metadata. Capture-normalized files are ready for GRASPPY import; they are not already GRASPPY-enriched.
 
 Message numbers are sequential across role blocks. A turn begins with a user message and includes following assistant content until the next user message. A locally incomplete conversation may have a user-only final turn and must carry a completeness warning.
 
-The renderer escapes unsafe raw HTML placeholders while preserving ordinary Markdown and fenced code. Output validation checks the metadata, role-marker sequence, declared and actual counts, full session identity, non-empty content, null bytes, and balanced fenced-code structure before replacement.
+The renderer escapes unsafe raw HTML placeholders while preserving ordinary Markdown and fenced code. Tool activity is wrapped in its own fence tagged `grasppy-tool`, always at least one backtick longer than any fence inside it, so a downstream reader can drop a tool block whole without taking part of the surrounding message with it. Output validation checks the metadata, role-marker sequence, declared and actual counts, full session identity, non-empty content, null bytes, and balanced fenced-code structure before replacement.
 
 ## Archive synchronization contract
 
