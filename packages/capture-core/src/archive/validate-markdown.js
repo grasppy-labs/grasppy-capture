@@ -99,11 +99,20 @@ function validateDeclaredMetadata(markdown, envelope) {
   }
 }
 
-export function validateCaptureMarkdown(markdown, envelope) {
+function isAcceptedFormat(value, acceptOlderFormat) {
+  if (value === String(CAPTURE_FORMAT_VERSION)) return true;
+  if (!acceptOlderFormat || !/^[1-9]\d*$/.test(value ?? '')) return false;
+  return Number(value) < CAPTURE_FORMAT_VERSION;
+}
+
+// acceptOlderFormat: reading or opening an export may accept a file an older Capture wrote,
+// because an export whose source is gone can never be re-rendered and is the only copy.
+// Re-render decisions (catalog-state) keep the strict current-format check.
+export function validateCaptureMarkdown(markdown, envelope, { acceptOlderFormat = false } = {}) {
   if (typeof markdown !== 'string' || markdown.trim() === '') invalidMarkdown('Rendered Markdown is empty.');
   if (markdown.includes('\0')) invalidMarkdown('Rendered Markdown contains a null byte.');
   if (!envelope || typeof envelope !== 'object') invalidMarkdown('Markdown envelope is missing.');
-  if (metadataValue(markdown, 'GRASPPY Capture Format') !== String(CAPTURE_FORMAT_VERSION)) {
+  if (!isAcceptedFormat(metadataValue(markdown, 'GRASPPY Capture Format'), acceptOlderFormat)) {
     invalidMarkdown('Markdown format metadata is invalid.');
   }
   if (metadataValue(markdown, 'Provider') !== envelope.provider
@@ -135,9 +144,9 @@ export function validateCaptureMarkdown(markdown, envelope) {
   return Object.freeze({ messageCount: roleMarkers.length, conversationTurnCount: userTurns });
 }
 
-export function validateStoredCaptureMarkdown(markdown, expectedIdentity = null) {
+export function validateStoredCaptureMarkdown(markdown, expectedIdentity = null, options = {}) {
   const envelope = readCaptureMarkdownEnvelope(markdown);
-  validateCaptureMarkdown(markdown, envelope);
+  validateCaptureMarkdown(markdown, envelope, options);
   if (expectedIdentity
     && (envelope.provider !== expectedIdentity.provider
       || envelope.fullSessionId !== expectedIdentity.fullSessionId)) {

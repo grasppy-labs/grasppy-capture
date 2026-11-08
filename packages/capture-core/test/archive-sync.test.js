@@ -6,8 +6,10 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
+  CAPTURE_FORMAT_VERSION,
   ERROR_CODES,
   PROVIDERS,
+  buildDashboardState,
   buildReviewCatalog,
   createFixedRunSet,
   createNormalizedSession,
@@ -15,6 +17,7 @@ import {
   persistSessionExclusion,
   runManualArchiveSync,
   setupArchiveDirectory,
+  validateStoredCaptureMarkdown,
   writeValidatedArchiveFile,
 } from '../src/index.js';
 import { createTemporaryHome, setFileTime } from './helpers.js';
@@ -358,4 +361,55 @@ test('recordEmptyRun false skips a run that changed nothing and keeps runs that 
     adapterResolver,
   });
   assert.equal(recorded.manifest.runs.length, runsAfterFirst + 1);
+});
+
+// A format bump re-renders every export whose source still exists, once. An export
+// whose source is gone is the only copy left, so it must stay exactly as it is.
+test('an older-format export is re-rendered from its source; one without a source is untouched', async (testContext) => {
+  const { temporaryHome, sourcePath, initialized } = await setupSync(testContext);
+  const secondSourcePath = path.join(temporaryHome, 'provider', 'second.jsonl');
+  await writeFile(secondSourcePath, '{"invented":2}\n', 'utf8');
+  await setFileTime(secondSourcePath, NOW);
+  const first = await createCandidate(sourcePath);
+  const second = await createCandidate(secondSourcePath, SECOND_SESSION_ID);
+  const adapterResolver = () => ({ normalizeSession: (item) => normalizedFromCandidate(item) });
+  const both = { provider: PROVIDERS.CODEX, status: 'ready', roots: {}, sessions: [first, second], observations: [] };
+  const created = await runManualArchiveSync({ ...initialized, providerResults: [both], now: () => NOW, adapterResolver });
+  assert.equal(created.run.results.created, 2);
+
+  // Turn both files into what an older Capture wrote: same bytes, older format number.
+  const outputOf = (sessionId) => created.manifest.sessions[`codex:${sessionId}`].outputPath;
+  const current = `**GRASPPY Capture Format:** ${CAPTURE_FORMAT_VERSION}`;
+  const older = `**GRASPPY Capture Format:** ${CAPTURE_FORMAT_VERSION - 1}`;
+  for (const sessionId of [SESSION_ID, SECOND_SESSION_ID]) {
+    const markdown = await readFile(outputOf(sessionId), 'utf8');
+    assert.ok(markdown.includes(current));
+    await writeFile(outputOf(sessionId), markdown.replace(current, older), 'utf8');
+  }
+  const orphanBefore = await readFile(outputOf(SECOND_SESSION_ID));
+
+  // The second session's source is gone: its provider no longer lists it.
+  const firstOnly = { ...both, sessions: [first] };
+  const rerun = await runManualArchiveSync({
+    manifestPath: initialized.manifestPath,
+    manifest: created.manifest,
+    providerResults: [firstOnly],
+    now: () => '2026-08-02T12:20:00.000Z',
+    adapterResolver,
+  });
+
+  assert.equal(rerun.run.results.replaced, 1);
+  assert.deepEqual(rerun.fixedRunSessionKeys, [`codex:${SESSION_ID}`]);
+  assert.ok((await readFile(outputOf(SESSION_ID), 'utf8')).includes(current), 'the export with a source is re-rendered');
+  assert.deepEqual(await readFile(outputOf(SECOND_SESSION_ID)), orphanBefore, 'the export without a source is byte-for-byte unchanged');
+
+  // It also stays usable: reading and opening accept the older format, while the
+  // re-render check keeps requiring the current one.
+  const orphan = await readFile(outputOf(SECOND_SESSION_ID), 'utf8');
+  const orphanEntry = rerun.manifest.sessions[`codex:${SECOND_SESSION_ID}`];
+  assert.throws(() => validateStoredCaptureMarkdown(orphan, orphanEntry), /format metadata/);
+  assert.doesNotThrow(() => validateStoredCaptureMarkdown(orphan, orphanEntry, { acceptOlderFormat: true }));
+  const dashboard = await buildDashboardState(rerun.manifest);
+  assert.equal(dashboard.currentArchive.invalidFiles, 0, 'the dashboard does not count the older export as invalid');
+  assert.equal(dashboard.currentArchive.fileCount, 2);
 });

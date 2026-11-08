@@ -23,7 +23,7 @@ async function inspectValidatedOutputs(manifest) {
       const outputPath = await resolveContainedArchiveFile(manifest.archivePath, entry.outputPath);
       const outputStat = await lstat(outputPath);
       const markdown = await readFile(outputPath, 'utf8');
-      validateStoredCaptureMarkdown(markdown, entry);
+      validateStoredCaptureMarkdown(markdown, entry, { acceptOlderFormat: true });
       fileCount += 1;
       sizeBytes += outputStat.size;
       const totals = providerTotals.get(entry.provider) ?? {

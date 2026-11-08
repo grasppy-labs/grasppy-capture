@@ -297,7 +297,7 @@ export function createCaptureAppService({
     if (!entry?.outputPath) throw new Error('No archived Markdown is available for this conversation.');
     const outputPath = await resolveContainedArchiveFile(configured.archivePath, entry.outputPath);
     const markdown = await readFile(outputPath, 'utf8');
-    validateStoredCaptureMarkdown(markdown, entry);
+    validateStoredCaptureMarkdown(markdown, entry, { acceptOlderFormat: true });
     return outputPath;
   }
 

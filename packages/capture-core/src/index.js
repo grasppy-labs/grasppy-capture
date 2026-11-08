@@ -64,6 +64,7 @@ export {
   setupArchiveDirectory,
 } from './archive/paths.js';
 export { migrateArchiveFilenames } from './archive/migrate-filenames.js';
+export { MIN_BINARY_RUN, omittedPayload, sweepBinaryPayloads } from './archive/omit-binary.js';
 export { renderCaptureMarkdown } from './archive/render-markdown.js';
 export {
   readCaptureMarkdownEnvelope,

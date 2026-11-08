@@ -3,7 +3,9 @@
 import { CaptureError, ERROR_CODES } from '../errors.js';
 import { createSessionKey, normalizeFullSessionId, normalizeProvider } from './identity.js';
 
-export const CAPTURE_FORMAT_VERSION = 2;
+// 3: base64 media inside tool results is replaced by its size and hash. The bump
+// re-renders every export whose source still exists, once; one without a source is kept.
+export const CAPTURE_FORMAT_VERSION = 3;
 export const MARKDOWN_ROLE_MARKERS = Object.freeze({
   user: '## 👤 USER MESSAGE',
   assistant: '## 🤖 AI RESPONSE',

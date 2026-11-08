@@ -3,6 +3,7 @@
 import { PROVIDER_DISPLAY_NAMES } from '../contracts/identity.js';
 import { createMarkdownEnvelope } from '../contracts/markdown-contract.js';
 import { CaptureError, ERROR_CODES } from '../errors.js';
+import { sweepBinaryPayloads } from './omit-binary.js';
 
 const ROLE_LABELS = Object.freeze({
   user: '👤 USER MESSAGE',
@@ -108,7 +109,10 @@ export function renderCaptureMarkdown(session, { exportedAt }) {
   if (!session || typeof session !== 'object' || !Array.isArray(session.events)) {
     throw new CaptureError(ERROR_CODES.INVALID_MARKDOWN_CONTRACT, 'Normalized session is invalid.');
   }
-  const blocks = groupEvents(session.events);
+  // Backstop: no base64 payload reaches an archive, whatever event or shape carried it
+  // (user or assistant text, tool input, tool result, nested objects).
+  const events = session.events.map((event) => ({ ...event, content: sweepBinaryPayloads(event.content) }));
+  const blocks = groupEvents(events);
   const roleBlocks = blocks.filter((block) => block.role);
   if (roleBlocks.length === 0) {
     throw new CaptureError(

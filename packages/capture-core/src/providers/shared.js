@@ -3,6 +3,7 @@
 import { lstat, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
+import { omittedPayload } from '../archive/omit-binary.js';
 import { CaptureError, ERROR_CODES } from '../errors.js';
 
 export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -122,6 +123,31 @@ function stringifyStructuredValue(value) {
   }
 }
 
+// A tool result can carry media as base64: a screenshot from a browser tool, or an
+// image file the agent read. The bytes stay in the provider's own log; the archive
+// keeps the block, its media type, size and a short hash, so the evidence remains
+// traceable to the source without copying the payload into every export.
+// renderCaptureMarkdown sweeps every event afterwards as a backstop for any other shape.
+const DATA_URL_PATTERN = /^data:([^;,]+);base64,/;
+
+function omitBinaryPayloads(value) {
+  if (!Array.isArray(value)) return value;
+  return value.map((block) => {
+    const source = block?.source;
+    // Claude: { type: 'image', source: { type: 'base64', media_type, data } }
+    if (source?.type === 'base64' && typeof source.data === 'string') {
+      return { ...block, source: { ...source, data: omittedPayload(source.data) } };
+    }
+    // Codex: { type: 'input_image', image_url: 'data:image/png;base64,...' }
+    const dataUrl = typeof block?.image_url === 'string' ? DATA_URL_PATTERN.exec(block.image_url) : null;
+    if (dataUrl) {
+      const base64 = block.image_url.slice(dataUrl[0].length);
+      return { ...block, image_url: `data:${dataUrl[1]};base64,${omittedPayload(base64)}` };
+    }
+    return block;
+  });
+}
+
 function normalizeContentItem(role, item, timestamp, observations) {
   if (typeof item === 'string') {
     return [{ type: role, content: item, timestamp }];
@@ -147,7 +173,7 @@ function normalizeContentItem(role, item, timestamp, observations) {
   if (itemType === 'tool_result' || itemType === 'function_call_output') {
     return [{
       type: 'tool',
-      content: stringifyStructuredValue(item.content ?? item.output),
+      content: stringifyStructuredValue(omitBinaryPayloads(item.content ?? item.output)),
       timestamp,
       metadata: { role, kind: itemType },
     }];
